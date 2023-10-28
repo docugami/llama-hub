@@ -6,7 +6,6 @@ from tqdm import tqdm
 
 from llama_index.llms.openai import OpenAI
 
-
 from config import (
     MAX_CHUNK_TEXT_LENGTH,
     INCLUDE_XML_TAGS,
@@ -21,18 +20,13 @@ from helpers.prompts import (
     CREATE_CHUNK_SUMMARY_QUERY_PROMPT,
     CREATE_CHUNK_SUMMARY_SYSTEM_PROMPT,
 )
-from config import LARGE_CONTEXT_INSTRUCT_LLM, SMALL_CONTEXT_INSTRUCT_LLM
-
-PARENT_DOC_ID_KEY = "doc_id"
-FULL_DOC_SUMMARY_ID_KEY = "full_doc_id"
-SOURCE_KEY = "source"
+from config import PARENT_DOC_ID_KEY
 
 
 def _build_summary_mappings(
     docs_by_id: Dict[str, Document],
-    system_prompt: str,
     query_prompt: str,
-    llm=SMALL_CONTEXT_INSTRUCT_LLM,
+    llm: OpenAI,
     min_length_to_summarize=MIN_LENGTH_TO_SUMMARIZE,
     max_length_cutoff=MAX_CHUNK_TEXT_LENGTH,
     label="summaries",
@@ -46,12 +40,6 @@ def _build_summary_mappings(
         "text"
         if not INCLUDE_XML_TAGS
         else "semantic XML without any namespaces or attributes"
-    )
-    llm = OpenAI(
-        temperature=0.5,
-        model="gpt-3.5-trbo-1106",
-        cache=True,
-        system_prompt=system_prompt,
     )
 
     for id, doc in tqdm(docs_by_id.items(), desc=f"Building {label}", unit="chunks"):
@@ -92,11 +80,18 @@ def build_full_doc_summary_mappings(
     Build summaries for all the given full documents.
     """
 
+    # Language Models
+    llm = OpenAI(
+        temperature=0.5,
+        model="gpt-4-turbo-preview",
+        cache=True,
+        system_prompt=CREATE_FULL_DOCUMENT_SUMMARY_SYSTEM_PROMPT,
+    )  # 128k tokens
+
     return _build_summary_mappings(
         docs_by_id=docs_by_id,
-        system_prompt=CREATE_FULL_DOCUMENT_SUMMARY_SYSTEM_PROMPT,
         query_prompt=CREATE_FULL_DOCUMENT_SUMMARY_QUERY_PROMPT,
-        llm=LARGE_CONTEXT_INSTRUCT_LLM,
+        llm=llm,
         max_length_cutoff=MAX_FULL_DOCUMENT_TEXT_LENGTH,
         label="full document summaries",
     )
@@ -109,31 +104,17 @@ def build_chunk_summary_mappings(
     Build summaries for all the given chunks.
     """
 
+    llm = OpenAI(
+        temperature=0.5,
+        model="gpt-3.5-trbo-1106",
+        cache=True,
+        system_prompt=CREATE_CHUNK_SUMMARY_SYSTEM_PROMPT,
+    )
+
     return _build_summary_mappings(
         docs_by_id=docs_by_id,
-        system_prompt=CREATE_CHUNK_SUMMARY_SYSTEM_PROMPT,
         query_prompt=CREATE_CHUNK_SUMMARY_QUERY_PROMPT,
-        llm=SMALL_CONTEXT_INSTRUCT_LLM,
+        llm=llm,
         max_length_cutoff=MAX_CHUNK_TEXT_LENGTH,
         label="chunk summaries",
     )
-
-
-# docset_id = "5bcy7abew0sd"
-
-# loader = DocugamiReader()
-# documents = loader.load_data(docset_id=docset_id)
-
-# chroma_client = chromadb.PersistentClient(str(CHROMA_DIRECTORY))
-
-# chroma_collection = chroma_client.get_or_create_collection(docset_id)
-# vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-# storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-# docs_by_id = {}
-
-# for doc in documents:
-#     id = doc.metadata.get("id")
-#     docs_by_id[id] = doc
-
-# _build_summary_mappings(docs_by_id, "", "")
