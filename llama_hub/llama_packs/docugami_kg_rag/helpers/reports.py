@@ -1,7 +1,8 @@
+from dataclasses import dataclass
 import os
 from pathlib import Path
 from typing import Optional, Union
-
+import re
 import pandas as pd
 import requests
 import sqlite3
@@ -15,6 +16,63 @@ from llama_index.query_engine import NLSQLTableQueryEngine
 
 
 HEADERS = {"Authorization": f"Bearer {DOCUGAMI_API_KEY}"}
+
+
+@dataclass
+class ReportDetails:
+    id: str
+    """ID of report."""
+
+    name: str
+    """Name of report."""
+
+    local_xlsx_path: Path
+    """Local path to XLSX of the report."""
+
+    retrieval_tool_function_name: str
+    """Function name for retrieval tool e.g. sql_query_earnings_calls."""
+
+    retrieval_tool_description: str
+    """
+    Description of retrieval tool e.g. Runs a SQL query over the REPORT_NAME report, 
+    represented as the following SQL Table... etc."""
+
+
+def report_name_to_report_query_tool_function_name(name: str) -> str:
+    """
+    Converts a report name to a report query tool function name.
+
+    Report query tool function names follow these conventions:
+    1. Retrieval tool function names always start with "query_".
+    2. The rest of the name should be a lowercased string, with underscores for whitespace.
+    3. Exclude any characters other than a-z (lowercase) from the function name, replacing them with underscores.
+    4. The final function name should not have more than one underscore together.
+
+    >>> report_name_to_report_query_tool_function_name('Earnings Calls')
+    'query_earnings_calls'
+    >>> report_name_to_report_query_tool_function_name('COVID-19   Statistics')
+    'query_covid_19_statistics'
+    >>> report_name_to_report_query_tool_function_name('2023 Market Report!!!')
+    'query_2023_market_report'
+    """
+    # Replace non-letter characters with underscores and remove extra whitespaces
+    name = re.sub(r"[^a-z\d]", "_", name.lower())
+    # Replace whitespace with underscores and remove consecutive underscores
+    name = re.sub(r"\s+", "_", name)
+    name = re.sub(r"_{2,}", "_", name)
+    name = name.strip("_")
+
+    return f"query_{name}"
+
+
+def report_details_to_report_query_tool_description(name: str, table_info: str) -> str:
+    """
+    Converts a set of chunks to a direct retriever tool description.
+    """
+    table_info = re.sub(r"\s+", " ", table_info)
+    description = f"Given a single input 'query' parameter, runs a SQL query over the {name} report, represented as the following SQL Table:\n\n{table_info}"
+
+    return description[:2048]  # cap to avoid failures when the description is too long
 
 
 def download_project_latest_xlsx(project_url: str, local_xlsx: Path) -> Optional[Path]:
@@ -101,5 +159,4 @@ def get_sql_query_engine(docset_id):
     )
 
     sql_query_engine.update_prompts({"prompt": EXPLAINED_QUERY_PROMPT})
-
     return sql_query_engine
