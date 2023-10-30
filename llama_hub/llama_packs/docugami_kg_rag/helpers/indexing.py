@@ -2,26 +2,26 @@ import hashlib
 import os
 from pathlib import Path
 import pickle
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from llama_index import StorageContext, VectorStoreIndex, load_index_from_storage
+from llama_index import StorageContext, VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from helpers.prompts import SYSTEM_MESSAGE_CORE
 
-from helpers.reports import ReportDetails
+from helpers.reports import ReportDetails, build_report_details
 
 from config import (
     CHROMA_DIRECTORY,
     EMBEDDINGS,
-    MAX_CHUNK_TEXT_LENGTH,
-    INCLUDE_XML_TAGS,
     FULL_DOC_SUMMARY_ID_KEY,
-    SOURCE_KEY,
-    PARENT_DOC_ID_KEY,
+    INCLUDE_XML_TAGS,
+    MAX_CHUNK_TEXT_LENGTH,
     MIN_CHUNK_TEXT_LENGTH,
-    SUB_CHUNK_TABLES,
+    PARENT_DOC_ID_KEY,
     PARENT_HIERARCHY_LEVELS,
+    SOURCE_KEY,
     INDEXING_LOCAL_STATE_PATH,
+    SUB_CHUNK_TABLES,
 )
 import chromadb
 from llama_hub.docugami import DocugamiReader
@@ -122,7 +122,7 @@ def index_docset(docset_id: str, name: str, overwrite=False):
         full_doc_id = hashlib.md5(full_doc_text.encode()).hexdigest()
         full_doc_ids_by_source[source] = full_doc_id
         full_docs_by_id[full_doc_id] = Document(
-            page_content=full_doc_text, metadata={"id": full_doc_id}
+            text=full_doc_text, metadata={"id": full_doc_id}
         )
 
     # Associate parent chunks with full docs
@@ -141,7 +141,7 @@ def index_docset(docset_id: str, name: str, overwrite=False):
     direct_tool_description = chunks_to_direct_retriever_tool_description(
         name, list(parent_chunks_by_id.values())
     )
-    # report_details = build_report_details(docset_id)
+    report_details = build_report_details(docset_id)
 
     if overwrite:
         state = Path(INDEXING_LOCAL_STATE_PATH)
@@ -154,8 +154,7 @@ def index_docset(docset_id: str, name: str, overwrite=False):
         chunks_by_id=parent_chunks_by_id,  # we are using the parent chunks as chunks for expanded context
         direct_tool_function_name=direct_tool_function_name,
         direct_tool_description=direct_tool_description,
-        report_details=[]
-        # report_details=report_details,
+        report_details=report_details,
     )
 
     populate_vector_index(
@@ -167,6 +166,8 @@ def populate_vector_index(docset_id: str, chunks: List[Document], overwrite=Fals
     """
     Create index if it does not exist, delete and overwrite if overwrite is specified.
     """
+
+    print(f"Populating vector store for {docset_id}")
 
     persistent_client = chromadb.PersistentClient(path=str(CHROMA_DIRECTORY.absolute()))
 
@@ -184,39 +185,6 @@ def populate_vector_index(docset_id: str, chunks: List[Document], overwrite=Fals
         chunks, storage_context=storage_context, embed_model=EMBEDDINGS
     )
 
-    index.storage_context.persist(persist_dir=CHROMA_DIRECTORY)
+    index.storage_context.persist(persist_dir=str(CHROMA_DIRECTORY.absolute()))
 
     print(f"Done embedding documents into vector store for {docset_id}")
-
-
-def get_vector_store_index(docset_id, embedding) -> Optional[ChromaVectorStore]:
-    db2 = chromadb.PersistentClient(path=CHROMA_DIRECTORY)
-    chroma_collection = db2.get_or_create_collection(docset_id)
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-    index = VectorStoreIndex.from_vector_store(
-        vector_store,
-        embed_model=embedding,
-    )
-
-    return index
-
-
-def get_vector_query_engine(documents, docset_id, overwrite):
-    chroma_client = chromadb.PersistentClient(str(CHROMA_DIRECTORY))
-
-    if overwrite:
-        chroma_client.delete_collection(docset_id)
-
-    chroma_collection = chroma_client.get_or_create_collection(docset_id)
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-    index = VectorStoreIndex.from_documents(
-        documents, storage_context=storage_context, embed_model=EMBEDDINGS
-    )
-
-    query_engine = index.as_query_engine()
-    query_engine.update_prompts({"prompt": SYSTEM_MESSAGE_CORE})
-
-    return query_engine
-

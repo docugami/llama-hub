@@ -30,6 +30,14 @@ INCLUDE_XML_TAGS = True
 PARENT_HIERARCHY_LEVELS = 2
 RETRIEVER_K = 8
 
+DEFAULT_USE_REPORTS = False
+AGENT_MAX_ITERATIONS = 5
+
+# Metadata keys
+PARENT_DOC_ID_KEY = "doc_id"
+FULL_DOC_SUMMARY_ID_KEY = "full_doc_id"
+SOURCE_KEY = "name"
+
 # Directories
 INDEXING_LOCAL_STATE_PATH = os.environ.get(
     "INDEXING_LOCAL_STATE_PATH", "/tmp/docugami/indexing_local_state.pkl"
@@ -41,11 +49,3 @@ os.makedirs(Path(REPORT_DIRECTORY).parent, exist_ok=True)
 
 CHROMA_DIRECTORY = Path("/tmp/docugami/chroma_db")
 CHROMA_DIRECTORY.mkdir(parents=True, exist_ok=True)
-
-PARENT_DOC_ID_KEY = "doc_id"
-FULL_DOC_SUMMARY_ID_KEY = "full_doc_id"
-SOURCE_KEY = "source"
-
-DEFAULT_USE_REPORTS = False
-AGENT_MAX_ITERATIONS = 5
-

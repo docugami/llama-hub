@@ -1,20 +1,19 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from llama_index.vector_stores.types import (
     VectorStoreQueryMode,
     VectorStoreQueryResult,
     VectorStoreQuery,
 )
+
+from llama_index.callbacks.base import CallbackManager
+from llama_index.schema import IndexNode
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
 from llama_index.retrievers import BaseRetriever
 
 
-from config import (
-    FULL_DOC_SUMMARY_ID_KEY,
-    SOURCE_KEY,
-    PARENT_DOC_ID_KEY,
-)
+from config import FULL_DOC_SUMMARY_ID_KEY, SOURCE_KEY, PARENT_DOC_ID_KEY, EMBEDDINGS
 
 from llama_index.readers.schema.base import Document
 
@@ -22,7 +21,7 @@ from llama_index.readers.schema.base import Document
 from dataclasses import dataclass
 from typing import List
 
-from docugami_kg_rag.config import (
+from config import (
     RETRIEVER_K,
 )
 from llama_index import QueryBundle
@@ -87,6 +86,29 @@ class FusedSummaryRetriever(BaseRetriever):
     search_type: VectorStoreQueryMode = VectorStoreQueryMode.DEFAULT
     """Type of search to perform (similarity (default)/ mmr / etc.)"""
 
+    def __init__(
+        self,
+        vectorstore: ChromaVectorStore,
+        full_doc_summary_store: Dict[str, Document],
+        parent_doc_store: Dict[str, Document],
+        search_type: VectorStoreQueryMode,
+        callback_manager: Optional[CallbackManager] = None,
+        object_map: Optional[Dict] = None,
+        objects: Optional[List[IndexNode]] = None,
+        verbose: bool = False,
+    ):
+        super().__init__(
+            callback_manager,
+            object_map,
+            objects,
+            verbose,
+        )
+
+        self.vectorstore = vectorstore
+        self.full_doc_summary_store = full_doc_summary_store
+        self.parent_doc_store = parent_doc_store
+        self.search_type = search_type
+
     def _retrieve(self, query_bundle: QueryBundle) -> List[NodeWithScore]:
         """Get documents relevant to a query.
         Args:
@@ -97,19 +119,18 @@ class FusedSummaryRetriever(BaseRetriever):
         """
 
         query = VectorStoreQuery(
-            query_embedding=query_bundle.embedding,
+            query_embedding=EMBEDDINGS.get_text_embedding(query_bundle.query_str),
             similarity_top_k=RETRIEVER_K,
             query_str=query_bundle.query_str,
             mode=self.search_type,
         )
 
         query_result: VectorStoreQueryResult = self.vectorstore.query(query)
+
         fused_doc_elements: Dict[str, FusedDocumentElements] = {}
 
         for i in range(RETRIEVER_K):
             node = query_result.nodes[i]
-            if not isinstance(node, Document):
-                raise Exception("Expected all nodes to be documents")
 
             parent_id = node.metadata.get(self.parent_id_key)
             full_doc_summary_id = node.metadata.get(self.full_doc_summary_id_key)
@@ -148,16 +169,11 @@ class FusedSummaryRetriever(BaseRetriever):
                         parent.text
                     )
 
-            else:
-                raise Exception(
-                    "Warning, something happened yo where parent_id and full_doc_summary_id is null"
-                )
-
         fused_docs: List[NodeWithScore] = []
         for element in sorted(fused_doc_elements.values(), key=lambda x: x.score):
             fragments_str = "\n\n".join([d.strip() for d in element.fragments])
             fused_doc = Document(
-                page_content=DOCUMENT_SUMMARY_TEMPLATE.format(
+                text=DOCUMENT_SUMMARY_TEMPLATE.format(
                     doc_name=element.source,
                     summary=element.summary,
                     fragments=fragments_str,

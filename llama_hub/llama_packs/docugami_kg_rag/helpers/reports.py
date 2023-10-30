@@ -8,7 +8,6 @@ import requests
 import sqlite3
 import tempfile
 from config import REPORT_DIRECTORY, DOCUGAMI_API_KEY, SQL_GEN_LLM
-from helpers.prompts import EXPLAINED_QUERY_PROMPT
 
 from docugami import Docugami
 from llama_index import SQLDatabase
@@ -132,6 +131,7 @@ def connect_to_excel(
         sample_rows_in_table_info=sample_rows_in_table_info,
     )
 
+
 def build_report_details(docset_id: str) -> List[ReportDetails]:
     docugami_client = Docugami()
 
@@ -148,14 +148,18 @@ def build_report_details(docset_id: str) -> List[ReportDetails]:
         if local_xlsx_path:
             report_name = project.name or local_xlsx_path.name
             db = connect_to_excel(local_xlsx_path, report_name)
-            table_info = db.get_single_table_info()
+            table_info = db.get_single_table_info(table_name=report_name)
             details.append(
                 ReportDetails(
                     id=project.id,
                     name=report_name,
                     local_xlsx_path=local_xlsx_path,
-                    retrieval_tool_function_name=report_name_to_report_query_tool_function_name(project.name),
-                    retrieval_tool_description=report_details_to_report_query_tool_description(project.name, table_info),
+                    retrieval_tool_function_name=report_name_to_report_query_tool_function_name(
+                        project.name
+                    ),
+                    retrieval_tool_description=report_details_to_report_query_tool_description(
+                        project.name, table_info
+                    ),
                 )
             )
 
@@ -176,35 +180,6 @@ def get_retrieval_tool_for_report(report_details: ReportDetails) -> Optional[Bas
         query_engine=query_engine,
         metadata=ToolMetadata(
             name=report_details.retrieval_tool_function_name,
-            description=report_details.retrieval_tool_description
-        )
+            description=report_details.retrieval_tool_description,
+        ),
     )
-
-
-# TODO: deprecate this
-def get_sql_query_engine(docset_id):
-    docugami_client = Docugami()
-    projects_response = docugami_client.projects.list()
-    projects = [p for p in projects_response.projects if p.docset.id == docset_id]
-
-    project = projects[0]
-    report_path = Path(REPORT_DIRECTORY) / f"{project.id}.xlsx"
-
-    local_xlsx_path = download_project_latest_xlsx(
-        project.url, Path(REPORT_DIRECTORY) / f"{project.id}.xlsx"
-    )
-
-    if not local_xlsx_path:
-        raise Exception("Failed to download the latest report")
-
-    report_name = project.name or report_path
-
-    sql_database = connect_to_excel(report_path, report_name)
-
-    sql_query_engine = NLSQLTableQueryEngine(
-        sql_database=sql_database,
-        tables=[report_name]
-    )
-
-    sql_query_engine.update_prompts({"prompt": EXPLAINED_QUERY_PROMPT})
-    return sql_query_engine

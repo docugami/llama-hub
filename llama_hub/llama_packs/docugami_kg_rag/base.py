@@ -1,15 +1,15 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from docugami import Docugami
-from llama_index.tools import QueryEngineTool, ToolMetadata
+from llama_index.tools import BaseTool
 from llama_index.llama_pack import BaseLlamaPack
 from llama_index.agent import ReActAgent
-from llama_hub.docugami import DocugamiReader
 
-from helpers.prompts import SYSTEM_MESSAGE_CORE
-from config import LARGE_CONTEXT_INSTRUCT_LLM
-from helpers.indexing import get_vector_query_engine
-from helpers.reports import get_sql_query_engine
+from helpers.prompts import ASSISTANT_SYSTEM_MESSAGE
+from config import LARGE_CONTEXT_INSTRUCT_LLM, DEFAULT_USE_REPORTS
+from helpers.indexing import read_all_local_index_state, index_docset
+from helpers.reports import get_retrieval_tool_for_report
+from helpers.retrieval import get_retrieval_tool_for_docset
 
 
 class DocugamiKgRagPack(BaseLlamaPack):
@@ -30,7 +30,7 @@ class DocugamiKgRagPack(BaseLlamaPack):
         for idx, docset in enumerate(docsets_response.docsets, start=1):
             print(f"{idx}: {docset.name} (ID: {docset.id})")
 
-    def build_agent_for_docset(self, docset_id: str, overwrite: bool = False):
+    def index_docset(self, docset_id: str, overwrite: bool = False):
         """
         Build the index for the docset and create the agent for it
         """
@@ -44,52 +44,59 @@ class DocugamiKgRagPack(BaseLlamaPack):
                 f"Docset with id {docset_id} does not exist in your workspace"
             )
 
-        loader = DocugamiReader()
-        documents = loader.load_data(docset_id=docset_id)
+        index_docset(docset_id, docset.name, overwrite)
 
-        self.vector_query_engine = get_vector_query_engine(
-            documents, docset_id, overwrite
-        )
-        self.sql_query_engine = get_sql_query_engine(docset_id)
+    def build_agent_for_docset(
+        self, docset_id: str, use_reports: bool = DEFAULT_USE_REPORTS
+    ):
 
-        tools = [
-            QueryEngineTool(
-                query_engine=self.vector_query_engine,
-                metadata=ToolMetadata(
-                    name="vector_query_tool",
-                    description="""
-                        Use one of these if you think the answer to the question is likely to come from one or a few documents.
+        local_state = read_all_local_index_state()
 
-                    """,
-                ),
-            ),
-            QueryEngineTool(
-                query_engine=self.sql_query_engine,
-                metadata=ToolMetadata(
-                    name="sql_query_tool",
-                    description="""
-                        Use one of these if you think the answer to the question is likely to come from a lot of documents or
-                        requires a calculation (e.g. an average, sum, or ordering values in some way).
-                    """,
-                ),
-            ),
-        ]
+        tools: List[BaseTool] = []
+        for docset_id in local_state:
+            docset_state = local_state[docset_id]
+            direct_retrieval_tool = get_retrieval_tool_for_docset(
+                docset_id, docset_state
+            )
+            if direct_retrieval_tool:
+                # Direct retrieval tool for each indexed docset (direct KG-RAG against semantic XML)
+                tools.append(direct_retrieval_tool)
+
+            if use_reports:
+                for report in docset_state.reports:
+                    # Report retrieval tool for each published report (user-curated views on semantic XML)
+                    report_retrieval_tool = get_retrieval_tool_for_report(report)
+                    if report_retrieval_tool:
+                        tools.append(report_retrieval_tool)
 
         self.agent = ReActAgent.from_tools(
             tools,
             llm=LARGE_CONTEXT_INSTRUCT_LLM,
             verbose=True,
-            context=SYSTEM_MESSAGE_CORE,
+            context=ASSISTANT_SYSTEM_MESSAGE,
         )
 
     def get_modules(self) -> Dict[str, Any]:
         """Get modules."""
         return {
-            "vector_query_engine": self.vector_query_engine,
-            "sql_query_engine": self.sql_query_engine,
             "agent": self.agent,
         }
 
     def run(self, *args: Any, **kwargs: Any) -> Any:
         """Run the pipeline."""
         return self.agent.query(*args, **kwargs)
+
+
+# docset_id = "5bcy7abew0sd"
+
+# pack = DocugamiKgRagPack()
+# pack.index_docset(docset_id)
+# pack.build_agent_for_docset(docset_id)
+# pack.run("What is the price of going to Indonesia for a trip?")
+
+# pack.run("What tools do you have available to you?")
+# pack.run("Print out the ToolMetadata")
+# pack.run("What trip options are there available?")``
+
+# pack.run("What are the documents that you have available to look through?")
+# pack.run("What trips are there in your documents")

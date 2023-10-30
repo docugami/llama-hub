@@ -61,7 +61,7 @@ def _build_summary_mappings(
         # Only summarize when content is longer than min_length_to_summarize
         summary_txt = (
             llm.chat(chat_messages).message.content
-            if text_content < min_length_to_summarize
+            if len(text_content) < min_length_to_summarize
             else text_content
         )
 
@@ -73,7 +73,7 @@ def _build_summary_mappings(
         meta[PARENT_DOC_ID_KEY] = id
 
         summaries[id] = Document(
-            page_content=summary_txt,
+            text=summary_txt,
             metadata=meta,
         )
 
@@ -112,5 +112,5 @@ def build_chunk_summary_mappings(
         llm=SMALL_CONTEXT_INSTRUCT_LLM,
         min_length_to_summarize=MIN_LENGTH_TO_SUMMARIZE,
         max_length_cutoff=MAX_CHUNK_TEXT_LENGTH,
-        label="full document summaries",
+        label="chunk summaries",
     )
