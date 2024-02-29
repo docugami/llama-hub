@@ -14,7 +14,7 @@ from helpers.reports import get_sql_query_engine
 
 class DocugamiKgRagPack(BaseLlamaPack):
     """Docugami KG-RAG Pack
-    
+
     A pack for performing evaluation with your own RAG pipeline.
 
     """
@@ -35,15 +35,21 @@ class DocugamiKgRagPack(BaseLlamaPack):
         Build the index for the docset and create the agent for it
         """
         docsets_response = self.docugami_client.docsets.list()
-        docset = [docset for docset in docsets_response.docsets if docset.id == docset_id][0]
+        docset = [
+            docset for docset in docsets_response.docsets if docset.id == docset_id
+        ][0]
 
         if not docset:
-            raise Exception(f"Docset with id {docset_id} does not exist in your workspace")
+            raise Exception(
+                f"Docset with id {docset_id} does not exist in your workspace"
+            )
 
         loader = DocugamiReader()
         documents = loader.load_data(docset_id=docset_id)
 
-        self.vector_query_engine = get_vector_query_engine(documents, docset_id, overwrite)
+        self.vector_query_engine = get_vector_query_engine(
+            documents, docset_id, overwrite
+        )
         self.sql_query_engine = get_sql_query_engine(docset_id)
 
         tools = [
@@ -51,34 +57,37 @@ class DocugamiKgRagPack(BaseLlamaPack):
                 query_engine=self.vector_query_engine,
                 metadata=ToolMetadata(
                     name="vector_query_tool",
-                    description=
-                    """
+                    description="""
                         Use one of these if you think the answer to the question is likely to come from one or a few documents.
 
-                    """
-                )
+                    """,
+                ),
             ),
             QueryEngineTool(
                 query_engine=self.sql_query_engine,
                 metadata=ToolMetadata(
                     name="sql_query_tool",
-                    description=
-                    """
+                    description="""
                         Use one of these if you think the answer to the question is likely to come from a lot of documents or
                         requires a calculation (e.g. an average, sum, or ordering values in some way).
-                    """
-                )
-            )
+                    """,
+                ),
+            ),
         ]
 
-        self.agent = ReActAgent.from_tools(tools, llm=LARGE_CONTEXT_INSTRUCT_LLM, verbose=True, context=SYSTEM_MESSAGE_CORE)
+        self.agent = ReActAgent.from_tools(
+            tools,
+            llm=LARGE_CONTEXT_INSTRUCT_LLM,
+            verbose=True,
+            context=SYSTEM_MESSAGE_CORE,
+        )
 
     def get_modules(self) -> Dict[str, Any]:
         """Get modules."""
         return {
             "vector_query_engine": self.vector_query_engine,
             "sql_query_engine": self.sql_query_engine,
-            "agent": self.agent
+            "agent": self.agent,
         }
 
     def run(self, *args: Any, **kwargs: Any) -> Any:

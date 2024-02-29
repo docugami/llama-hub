@@ -26,7 +26,11 @@ def download_project_latest_xlsx(project_url: str, local_xlsx: Path) -> Optional
     if response.ok:
         response_json = response.json()["artifacts"]
         xlsx_artifact = next(
-            (item for item in response_json if str(item["name"]).lower().endswith(".xlsx")),
+            (
+                item
+                for item in response_json
+                if str(item["name"]).lower().endswith(".xlsx")
+            ),
             None,
         )
         if xlsx_artifact:
@@ -48,7 +52,9 @@ def download_project_latest_xlsx(project_url: str, local_xlsx: Path) -> Optional
         raise Exception(f"Failed to download XLSX for {project_url}")
 
 
-def connect_to_excel(file_path: Union[Path, str], table_name: str, sample_rows_in_table_info=0) -> SQLDatabase:
+def connect_to_excel(
+    file_path: Union[Path, str], table_name: str, sample_rows_in_table_info=0
+) -> SQLDatabase:
     conn = sqlite3.connect(":memory:")
 
     file_path = Path(file_path)
@@ -67,6 +73,7 @@ def connect_to_excel(file_path: Union[Path, str], table_name: str, sample_rows_i
         f"sqlite:///{temp_db_file.name}",
         sample_rows_in_table_info=sample_rows_in_table_info,
     )
+
 
 def get_sql_query_engine(docset_id):
     docugami_client = Docugami()
