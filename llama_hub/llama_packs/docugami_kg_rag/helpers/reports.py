@@ -10,8 +10,8 @@ from config import REPORT_DIRECTORY, DOCUGAMI_API_KEY, SQL_GEN_LLM
 from prompts import EXPLAINED_QUERY_PROMPT
 
 from docugami import Docugami
-from llama_index.core import SQLDatabase
-from llama_index.core.query_engine import NLSQLTableQueryEngine
+from llama_index import SQLDatabase
+from llama_index.query_engine import NLSQLTableQueryEngine
 
 
 HEADERS = {"Authorization": f"Bearer {DOCUGAMI_API_KEY}"}

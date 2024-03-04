@@ -1,9 +1,9 @@
 from typing import Dict, Any
 
 from docugami import Docugami
-from llama_index.core.tools import QueryEngineTool, ToolMetadata
-from llama_index.core.llama_pack import BaseLlamaPack
-from llama_index.core.agent import ReActAgent
+from llama_index.tools import QueryEngineTool, ToolMetadata
+from llama_index.llama_pack import BaseLlamaPack
+from llama_index.agent import ReActAgent
 from llama_hub.docugami import DocugamiReader
 
 from helpers.prompts import SYSTEM_MESSAGE_CORE

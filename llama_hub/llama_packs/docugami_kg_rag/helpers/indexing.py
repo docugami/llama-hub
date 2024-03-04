@@ -1,6 +1,6 @@
 import chromadb
 
-from llama_index.core import StorageContext, VectorStoreIndex
+from llama_index import StorageContext, VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from helpers.prompts import SYSTEM_MESSAGE_CORE
 from config import CHROMA_DIRECTORY, EMBEDDINGS

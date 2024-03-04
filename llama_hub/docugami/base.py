@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Sequence, Union
 
 import requests
-from llama_index.core.readers.base import BaseReader
-from llama_index.core.readers import Document
+from llama_index.readers.base import BaseReader
+from llama_index.readers.schema.base import Document
 
 TABLE_NAME = "{http://www.w3.org/1999/xhtml}table"
 

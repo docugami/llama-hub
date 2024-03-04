@@ -2,3 +2,4 @@ dgml_utils
 docugami
 lxml
 openpyxl
+chromadb
