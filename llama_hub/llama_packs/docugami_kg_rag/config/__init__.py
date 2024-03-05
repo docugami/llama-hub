@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-from llama_index.core import Settings
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
 
@@ -28,5 +27,11 @@ CHROMA_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
 REPORT_DIRECTORY = "/tmp/docugami/report_dbs"
 
-# Settings
-Settings.chunk_size = 1024 * 26
+MIN_LENGTH_TO_SUMMARIZE = 2048  # chunks and docs below this length are embedded as-is
+MAX_FULL_DOCUMENT_TEXT_LENGTH = 1024 * 56  # ~14k tokens
+MAX_CHUNK_TEXT_LENGTH = 1024 * 26  # ~6.5k tokens
+MIN_CHUNK_TEXT_LENGTH = 1024 * 6  # ~1.5k tokens
+SUB_CHUNK_TABLES = False
+INCLUDE_XML_TAGS = True
+PARENT_HIERARCHY_LEVELS = 2
+RETRIEVER_K = 8

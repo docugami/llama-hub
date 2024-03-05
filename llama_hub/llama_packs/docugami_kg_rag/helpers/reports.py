@@ -7,7 +7,7 @@ import requests
 import sqlite3
 import tempfile
 from config import REPORT_DIRECTORY, DOCUGAMI_API_KEY, SQL_GEN_LLM
-from prompts import EXPLAINED_QUERY_PROMPT
+from helpers.prompts import EXPLAINED_QUERY_PROMPT
 
 from docugami import Docugami
 from llama_index import SQLDatabase

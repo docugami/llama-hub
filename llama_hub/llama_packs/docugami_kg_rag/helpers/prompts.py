@@ -68,7 +68,7 @@ Begin!
 """
 )
 
-CREATE_FULL_DOCUMENT_SUMMARY_SYSTEM_MESSAGE = f"""{SYSTEM_MESSAGE_CORE}
+CREATE_FULL_DOCUMENT_SUMMARY_SYSTEM_PROMPT = f"""{SYSTEM_MESSAGE_CORE}
 You will be asked to summarize documents. You ALWAYS follow these rules when generating summaries:
 
 - Your generated summary should be in the same format as the given document, using the same overall schema.
@@ -77,7 +77,7 @@ You will be asked to summarize documents. You ALWAYS follow these rules when gen
 - Include as many facts and data points from the original document as you can, in your summary.
 """
 
-CREATE_FULL_DOCUMENT_SUMMARY_PROMPT = """Here is a document, in {format} format:
+CREATE_FULL_DOCUMENT_SUMMARY_QUERY_PROMPT = """Here is a document, in {format} format:
 
 {document}
 
@@ -86,7 +86,7 @@ Please write a detailed summary of the given document.
 Respond only with the summary and no other language before or after.
 """
 
-CREATE_CHUNK_SUMMARY_SYSTEM_MESSAGE = f"""{SYSTEM_MESSAGE_CORE}
+CREATE_CHUNK_SUMMARY_SYSTEM_PROMPT = f"""{SYSTEM_MESSAGE_CORE}
 You will be asked to summarize chunks of documents. You ALWAYS follow these rules when generating summaries:
 
 - Your generated summary should be in the same format as the given document, using the same overall schema.
@@ -96,7 +96,7 @@ You will be asked to summarize chunks of documents. You ALWAYS follow these rule
 - Pay special attention to monetary amounts, dates, names of people and companies, etc and include in your summary.
 """
 
-CREATE_CHUNK_SUMMARY_PROMPT = """Here is a chunk from a document, in {format} format:
+CREATE_CHUNK_SUMMARY_QUERY_PROMPT = """Here is a chunk from a document, in {format} format:
 
 {document}
 
