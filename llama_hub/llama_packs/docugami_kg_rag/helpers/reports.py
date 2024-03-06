@@ -168,8 +168,6 @@ def get_retrieval_tool_for_report(report_details: ReportDetails) -> Optional[Bas
 
     db = connect_to_excel(report_details.local_xlsx_path, report_details.name)
 
-    from llama_index.query_engine import NLSQLTableQueryEngine
-
     query_engine = NLSQLTableQueryEngine(
         sql_database=db, tables=[report_details.name], llm=SQL_GEN_LLM
     )

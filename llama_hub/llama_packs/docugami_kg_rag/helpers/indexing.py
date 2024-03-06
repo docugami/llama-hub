@@ -2,13 +2,13 @@ import hashlib
 import os
 from pathlib import Path
 import pickle
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from llama_index import StorageContext, VectorStoreIndex
+from llama_index import StorageContext, VectorStoreIndex, load_index_from_storage
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from helpers.prompts import SYSTEM_MESSAGE_CORE
 
-from llama_hub.llama_packs.docugami_kg_rag.helpers.reports import ReportDetails
+from helpers.reports import ReportDetails
 
 from config import (
     CHROMA_DIRECTORY,
@@ -27,13 +27,13 @@ import chromadb
 from llama_hub.docugami import DocugamiReader
 from llama_index.readers.schema.base import Document
 
-from llama_hub.llama_packs.docugami_kg_rag.retrieval import LocalIndexState
 from helpers.summaries import (
     build_chunk_summary_mappings,
     build_full_doc_summary_mappings,
 )
 
-from llama_hub.llama_packs.docugami_kg_rag.retrieval import (
+from helpers.retrieval import (
+    LocalIndexState,
     docset_name_to_direct_retriever_tool_function_name,
     chunks_to_direct_retriever_tool_description,
 )
@@ -189,6 +189,18 @@ def populate_vector_index(docset_id: str, chunks: List[Document], overwrite=Fals
     print(f"Done embedding documents into vector store for {docset_id}")
 
 
+def get_vector_store_index(docset_id, embedding) -> Optional[ChromaVectorStore]:
+    db2 = chromadb.PersistentClient(path=CHROMA_DIRECTORY)
+    chroma_collection = db2.get_or_create_collection(docset_id)
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+    index = VectorStoreIndex.from_vector_store(
+        vector_store,
+        embed_model=embedding,
+    )
+
+    return index
+
+
 def get_vector_query_engine(documents, docset_id, overwrite):
     chroma_client = chromadb.PersistentClient(str(CHROMA_DIRECTORY))
 
@@ -207,3 +219,4 @@ def get_vector_query_engine(documents, docset_id, overwrite):
     query_engine.update_prompts({"prompt": SYSTEM_MESSAGE_CORE})
 
     return query_engine
+

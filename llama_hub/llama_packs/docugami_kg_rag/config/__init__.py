@@ -45,3 +45,7 @@ CHROMA_DIRECTORY.mkdir(parents=True, exist_ok=True)
 PARENT_DOC_ID_KEY = "doc_id"
 FULL_DOC_SUMMARY_ID_KEY = "full_doc_id"
 SOURCE_KEY = "source"
+
+DEFAULT_USE_REPORTS = False
+AGENT_MAX_ITERATIONS = 5
+
