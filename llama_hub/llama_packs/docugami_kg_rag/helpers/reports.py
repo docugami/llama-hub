@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 import re
 import pandas as pd
 import requests
@@ -13,7 +13,7 @@ from helpers.prompts import EXPLAINED_QUERY_PROMPT
 from docugami import Docugami
 from llama_index import SQLDatabase
 from llama_index.query_engine import NLSQLTableQueryEngine
-
+from llama_index.tools import BaseTool, QueryEngineTool, ToolMetadata
 
 HEADERS = {"Authorization": f"Bearer {DOCUGAMI_API_KEY}"}
 
@@ -132,7 +132,58 @@ def connect_to_excel(
         sample_rows_in_table_info=sample_rows_in_table_info,
     )
 
+def build_report_details(docset_id: str) -> List[ReportDetails]:
+    docugami_client = Docugami()
 
+    projects_response = docugami_client.projects.list()
+    if not projects_response or not projects_response.projects:
+        return []  # no projects found
+
+    projects = [p for p in projects_response.projects if p.docset.id == docset_id]
+    details: List[ReportDetails] = []
+    for project in projects:
+        local_xlsx_path = download_project_latest_xlsx(
+            project.url, Path(REPORT_DIRECTORY) / f"{project.id}.xlsx"
+        )
+        if local_xlsx_path:
+            report_name = project.name or local_xlsx_path.name
+            db = connect_to_excel(local_xlsx_path, report_name)
+            table_info = db.get_single_table_info()
+            details.append(
+                ReportDetails(
+                    id=project.id,
+                    name=report_name,
+                    local_xlsx_path=local_xlsx_path,
+                    retrieval_tool_function_name=report_name_to_report_query_tool_function_name(project.name),
+                    retrieval_tool_description=report_details_to_report_query_tool_description(project.name, table_info),
+                )
+            )
+
+    return details
+
+
+def get_retrieval_tool_for_report(report_details: ReportDetails) -> Optional[BaseTool]:
+    if not report_details.local_xlsx_path:
+        return None
+
+    db = connect_to_excel(report_details.local_xlsx_path, report_details.name)
+
+    from llama_index.query_engine import NLSQLTableQueryEngine
+
+    query_engine = NLSQLTableQueryEngine(
+        sql_database=db, tables=[report_details.name], llm=SQL_GEN_LLM
+    )
+
+    return QueryEngineTool(
+        query_engine=query_engine,
+        metadata=ToolMetadata(
+            name=report_details.retrieval_tool_function_name,
+            description=report_details.retrieval_tool_description
+        )
+    )
+
+
+# TODO: deprecate this
 def get_sql_query_engine(docset_id):
     docugami_client = Docugami()
     projects_response = docugami_client.projects.list()
@@ -154,8 +205,7 @@ def get_sql_query_engine(docset_id):
 
     sql_query_engine = NLSQLTableQueryEngine(
         sql_database=sql_database,
-        tables=[report_name],
-        llm=SQL_GEN_LLM,
+        tables=[report_name]
     )
 
     sql_query_engine.update_prompts({"prompt": EXPLAINED_QUERY_PROMPT})
