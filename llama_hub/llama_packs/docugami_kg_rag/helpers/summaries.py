@@ -1,16 +1,17 @@
 import hashlib
 from typing import Dict
 
-from llama_index import SummaryIndex
 from tqdm import tqdm
 
 from llama_index.llms.openai import OpenAI
 
 from config import (
+    LARGE_CONTEXT_INSTRUCT_LLM,
     MAX_CHUNK_TEXT_LENGTH,
     INCLUDE_XML_TAGS,
     MIN_LENGTH_TO_SUMMARIZE,
     MAX_FULL_DOCUMENT_TEXT_LENGTH,
+    SMALL_CONTEXT_INSTRUCT_LLM,
 )
 from llama_index.readers.schema.base import Document
 
@@ -21,11 +22,19 @@ from helpers.prompts import (
     CREATE_CHUNK_SUMMARY_SYSTEM_PROMPT,
 )
 from config import PARENT_DOC_ID_KEY
+from llama_index.llms import ChatMessage, MessageRole
+
+FORMAT = (
+    "text"
+    if not INCLUDE_XML_TAGS
+    else "semantic XML without any namespaces or attributes"
+)
 
 
 def _build_summary_mappings(
     docs_by_id: Dict[str, Document],
-    query_prompt: str,
+    system_message: str,
+    prompt_template: str,
     llm: OpenAI,
     min_length_to_summarize=MIN_LENGTH_TO_SUMMARIZE,
     max_length_cutoff=MAX_CHUNK_TEXT_LENGTH,
@@ -36,27 +45,25 @@ def _build_summary_mappings(
     """
 
     summaries: Dict[str, Document] = {}
-    format = (
-        "text"
-        if not INCLUDE_XML_TAGS
-        else "semantic XML without any namespaces or attributes"
-    )
 
     for id, doc in tqdm(docs_by_id.items(), desc=f"Building {label}", unit="chunks"):
-        content = doc.text[:max_length_cutoff]
+        text_content = doc.text[:max_length_cutoff]
 
-        query_str = query_prompt.format(format=format, document=content)
+        query_str = prompt_template.format(format=FORMAT, document=text_content)
 
-        summary_index = SummaryIndex.from_documents([doc])
-        query_engine = summary_index.as_query_engine(llm=llm)
-
+        chat_messages = [
+            ChatMessage(
+                role=MessageRole.SYSTEM,
+                content=system_message,
+            ),
+            ChatMessage(role=MessageRole.USER, content=query_str),
+        ]
         # Only summarize when content is longer than min_length_to_summarize
         summary_txt = (
-            query_engine.query(query_str)
-            if content < min_length_to_summarize
-            else content
+            llm.chat(chat_messages).message.content
+            if text_content < min_length_to_summarize
+            else text_content
         )
-        summary_txt = str(summary_txt)
 
         # Create new hashed id for the summary and add original id as parent doc id
         summaries[id] = summary_txt
@@ -80,18 +87,12 @@ def build_full_doc_summary_mappings(
     Build summaries for all the given full documents.
     """
 
-    # Language Models
-    llm = OpenAI(
-        temperature=0.5,
-        model="gpt-4-turbo-preview",
-        cache=True,
-        system_prompt=CREATE_FULL_DOCUMENT_SUMMARY_SYSTEM_PROMPT,
-    )  # 128k tokens
-
     return _build_summary_mappings(
         docs_by_id=docs_by_id,
-        query_prompt=CREATE_FULL_DOCUMENT_SUMMARY_QUERY_PROMPT,
-        llm=llm,
+        system_message=CREATE_FULL_DOCUMENT_SUMMARY_SYSTEM_PROMPT,
+        prompt_template=CREATE_FULL_DOCUMENT_SUMMARY_QUERY_PROMPT,
+        llm=LARGE_CONTEXT_INSTRUCT_LLM,
+        min_length_to_summarize=MIN_LENGTH_TO_SUMMARIZE,
         max_length_cutoff=MAX_FULL_DOCUMENT_TEXT_LENGTH,
         label="full document summaries",
     )
@@ -104,17 +105,12 @@ def build_chunk_summary_mappings(
     Build summaries for all the given chunks.
     """
 
-    llm = OpenAI(
-        temperature=0.5,
-        model="gpt-3.5-trbo-1106",
-        cache=True,
-        system_prompt=CREATE_CHUNK_SUMMARY_SYSTEM_PROMPT,
-    )
-
     return _build_summary_mappings(
         docs_by_id=docs_by_id,
-        query_prompt=CREATE_CHUNK_SUMMARY_QUERY_PROMPT,
-        llm=llm,
+        system_message=CREATE_CHUNK_SUMMARY_SYSTEM_PROMPT,
+        prompt_template=CREATE_CHUNK_SUMMARY_QUERY_PROMPT,
+        llm=SMALL_CONTEXT_INSTRUCT_LLM,
+        min_length_to_summarize=MIN_LENGTH_TO_SUMMARIZE,
         max_length_cutoff=MAX_CHUNK_TEXT_LENGTH,
-        label="chunk summaries",
+        label="full document summaries",
     )

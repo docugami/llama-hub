@@ -103,7 +103,7 @@ CREATE_CHUNK_SUMMARY_QUERY_PROMPT = """Here is a chunk from a document, in {form
 Respond only with the summary and no other language before or after.
 """
 
-CREATE_DIRECT_RETRIEVAL_TOOL_SYSTEM_MESSAGE = f"""{SYSTEM_MESSAGE_CORE}
+CREATE_DIRECT_RETRIEVAL_TOOL_SYSTEM_PROMPT = f"""{SYSTEM_MESSAGE_CORE}
 You will be asked to write short generate descriptions of document types, given a particular sampel document
 as a guide. You ALWAYS follow these rules when generating descriptions:
 
@@ -119,7 +119,7 @@ as a guide. You ALWAYS follow these rules when generating descriptions:
 
 """
 
-CREATE_DIRECT_RETRIEVAL_TOOL_DESCRIPTION_PROMPT = """Here is a snippet from a sample document of type {docset_name}:
+CREATE_DIRECT_RETRIEVAL_TOOL_DESCRIPTION_QUERY_PROMPT = """Here is a snippet from a sample document of type {docset_name}:
 
 {document}
 
