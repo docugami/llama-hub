@@ -1,15 +1,24 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from dataclasses import dataclass
-from llama_hub.llama_packs.docugami_kg_rag.helpers.reports import ReportDetails
+from helpers.reports import ReportDetails
 from llama_index.readers.schema.base import Document
-from config import MAX_CHUNK_TEXT_LENGTH, LARGE_CONTEXT_INSTRUCT_LLM
+from config import EMBEDDINGS, MAX_CHUNK_TEXT_LENGTH, LARGE_CONTEXT_INSTRUCT_LLM, RETRIEVER_K
 import re
 from helpers.prompts import (
     CREATE_DIRECT_RETRIEVAL_TOOL_DESCRIPTION_QUERY_PROMPT,
     CREATE_DIRECT_RETRIEVAL_TOOL_SYSTEM_PROMPT,
 )
+from llama_index.vector_stores.types import (
+    VectorStoreQueryMode
+)
 
 from llama_index.llms import ChatMessage, MessageRole
+from llama_index.query_engine import RetrieverQueryEngine
+from llama_index.tools import BaseTool, ToolMetadata, QueryEngineTool
+from llama_index.response_synthesizers import get_response_synthesizer, ResponseMode
+
+from helpers.indexing import get_vector_store_index
+from helpers.fused_summary_retriever import FusedSummaryRetriever
 
 
 @dataclass
@@ -81,3 +90,37 @@ def chunks_to_direct_retriever_tool_description(name: str, chunks: List[Document
     summary = LARGE_CONTEXT_INSTRUCT_LLM.chat(chat_messages).message.content
 
     return f"Given a single input 'query' parameter, searches for and returns chunks from {name} documents. {summary}"
+
+def get_retrieval_tool_for_docset(docset_id: str, docset_state: LocalIndexState) -> Optional[BaseTool]:
+    """
+    Gets a retrieval tool for an agent.
+    """
+
+    chunk_vectorstore = get_vector_store_index(docset_id, EMBEDDINGS)
+
+    if not chunk_vectorstore:
+        return None
+
+    retriever = FusedSummaryRetriever(
+        vectorstore=chunk_vectorstore,
+        parent_doc_store=docset_state.chunks_by_id,
+        full_doc_summary_store=docset_state.full_doc_summaries_by_id,
+        search_kwargs={"k": RETRIEVER_K},
+        search_type=VectorStoreQueryMode.MMR,
+    )
+
+    if not retriever:
+        return None
+
+    query_engine = RetrieverQueryEngine(
+        retriever=retriever,
+        response_synthesizer=get_response_synthesizer(ResponseMode.REFINE),
+    )
+
+    return QueryEngineTool(
+        query_engine=query_engine,
+        metadata=ToolMetadata(
+            name=docset_state.retrieval_tool_function_name,
+            description=docset_state.retrieval_tool_description
+        )
+    )
