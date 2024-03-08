@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 import sqlite3
 import tempfile
-from config import REPORT_DIRECTORY, DOCUGAMI_API_KEY, SQL_GEN_LLM
+from config import REPORT_DIRECTORY, DOCUGAMI_API_KEY
 
 from docugami import Docugami
 from llama_index import SQLDatabase
@@ -172,9 +172,7 @@ def get_retrieval_tool_for_report(report_details: ReportDetails) -> Optional[Bas
 
     db = connect_to_excel(report_details.local_xlsx_path, report_details.name)
 
-    query_engine = NLSQLTableQueryEngine(
-        sql_database=db, tables=[report_details.name], llm=SQL_GEN_LLM
-    )
+    query_engine = NLSQLTableQueryEngine(sql_database=db, tables=[report_details.name])
 
     return QueryEngineTool(
         query_engine=query_engine,

@@ -106,7 +106,9 @@ class DocugamiReader(BaseReader):
         self.docset_id = docset_id
         self.document_ids = document_ids
         self.file_paths = file_paths
-        self.include_project_metadata_in_doc_metadata = include_project_metadata_in_doc_metadata
+        self.include_project_metadata_in_doc_metadata = (
+            include_project_metadata_in_doc_metadata
+        )
 
     def _parse_dgml(
         self,

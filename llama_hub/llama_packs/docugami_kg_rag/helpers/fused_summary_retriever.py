@@ -126,7 +126,6 @@ class FusedSummaryRetriever(BaseRetriever):
         )
 
         query_result: VectorStoreQueryResult = self.vectorstore.query(query)
-
         fused_doc_elements: Dict[str, FusedDocumentElements] = {}
 
         for i in range(RETRIEVER_K):

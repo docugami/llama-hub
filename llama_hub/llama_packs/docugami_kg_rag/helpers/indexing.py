@@ -6,7 +6,6 @@ from typing import Dict, List
 
 from llama_index import StorageContext, VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from helpers.prompts import SYSTEM_MESSAGE_CORE
 
 from helpers.reports import ReportDetails, build_report_details
 

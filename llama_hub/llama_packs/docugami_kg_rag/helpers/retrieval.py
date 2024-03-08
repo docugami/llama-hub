@@ -1,11 +1,9 @@
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 
-from llama_index import VectorStoreIndex, StorageContext
 from helpers.reports import ReportDetails
 from llama_index.readers.schema.base import Document
 from config import (
-    EMBEDDINGS,
     MAX_CHUNK_TEXT_LENGTH,
     LARGE_CONTEXT_INSTRUCT_LLM,
 )
@@ -105,7 +103,6 @@ def get_retrieval_tool_for_docset(
     chunk_vectorstore = get_vector_store(docset_id)
 
     if not chunk_vectorstore:
-        print("vector_store failed")
         return None
 
     retriever = FusedSummaryRetriever(
@@ -116,14 +113,9 @@ def get_retrieval_tool_for_docset(
     )
 
     if not retriever:
-        print("retriever failed")
         return None
 
     query_engine = RetrieverQueryEngine(retriever=retriever)
-
-    return BaseTool(
-        
-    )
 
     return QueryEngineTool(
         query_engine=query_engine,

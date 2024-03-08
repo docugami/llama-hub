@@ -15,6 +15,7 @@ def get_vector_store(docset_id) -> Optional[ChromaVectorStore]:
         chroma_collection=chroma_collection, embed_model=EMBEDDINGS
     )
 
+
 def get_vector_store_index(docset_id, embedding) -> Optional[VectorStoreIndex]:
 
     vector_store = get_vector_store(docset_id)

@@ -85,18 +85,3 @@ class DocugamiKgRagPack(BaseLlamaPack):
     def run(self, *args: Any, **kwargs: Any) -> Any:
         """Run the pipeline."""
         return self.agent.query(*args, **kwargs)
-
-
-# docset_id = "5bcy7abew0sd"
-
-# pack = DocugamiKgRagPack()
-# pack.index_docset(docset_id)
-# pack.build_agent_for_docset(docset_id)
-# pack.run("What is the price of going to Indonesia for a trip?")
-
-# pack.run("What tools do you have available to you?")
-# pack.run("Print out the ToolMetadata")
-# pack.run("What trip options are there available?")``
-
-# pack.run("What are the documents that you have available to look through?")
-# pack.run("What trips are there in your documents")

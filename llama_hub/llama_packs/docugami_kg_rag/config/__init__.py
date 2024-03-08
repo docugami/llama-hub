@@ -16,7 +16,6 @@ LARGE_CONTEXT_INSTRUCT_LLM = OpenAI(
 SMALL_CONTEXT_INSTRUCT_LLM = OpenAI(
     temperature=0.5, model="gpt-3.5-turbo-1106", cache=True
 )  # 16k tokens
-SQL_GEN_LLM = SMALL_CONTEXT_INSTRUCT_LLM  # Use the same model for SQL generation
 
 # Embeddings
 EMBEDDINGS = OpenAIEmbedding(model="text-embedding-ada-002")
